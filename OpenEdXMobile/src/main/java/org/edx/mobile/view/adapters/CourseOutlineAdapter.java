@@ -3,6 +3,7 @@ package org.edx.mobile.view.adapters;
 import android.content.Context;
 import android.support.annotation.NonNull;
 import android.support.v4.view.ViewCompat;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -28,8 +29,12 @@ import org.edx.mobile.module.db.DataCallback;
 import org.edx.mobile.module.db.IDatabase;
 import org.edx.mobile.module.storage.IStorage;
 import org.edx.mobile.util.Config;
+import org.edx.mobile.util.DateUtil;
+import org.edx.mobile.util.ResourceUtil;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -47,6 +52,7 @@ public class CourseOutlineAdapter extends BaseAdapter {
         void viewDownloadsStatus();
     }
 
+    private Context context;
     private CourseComponent rootComponent;
     private LayoutInflater mInflater;
     private List<SectionRow> mData;
@@ -59,6 +65,7 @@ public class CourseOutlineAdapter extends BaseAdapter {
 
     public CourseOutlineAdapter(Context context, Config config, IDatabase dbStore, IStorage storage,
                                 DownloadListener listener, boolean isVideoMode) {
+        this.context = context;
         this.config = config;
         this.dbStore = dbStore;
         this.storage = storage;
@@ -205,6 +212,7 @@ public class CourseOutlineAdapter extends BaseAdapter {
         viewHolder.rowType.setVisibility(View.GONE);
         viewHolder.rowSubtitleIcon.setVisibility(View.GONE);
         viewHolder.rowSubtitle.setVisibility(View.GONE);
+        viewHolder.rowSubtitleDueDate.setVisibility(View.GONE);
         viewHolder.rowSubtitlePanel.setVisibility(View.GONE);
         viewHolder.numOfVideoAndDownloadArea.setVisibility(View.GONE);
 
@@ -221,6 +229,7 @@ public class CourseOutlineAdapter extends BaseAdapter {
         final CourseComponent unit = row.component;
         viewHolder.rowType.setVisibility(View.VISIBLE);
         viewHolder.rowSubtitleIcon.setVisibility(View.GONE);
+        viewHolder.rowSubtitleDueDate.setVisibility(View.GONE);
         viewHolder.rowSubtitle.setVisibility(View.GONE);
         viewHolder.rowSubtitlePanel.setVisibility(View.GONE);
         viewHolder.bulkDownload.setVisibility(View.INVISIBLE);
@@ -355,6 +364,14 @@ public class CourseOutlineAdapter extends BaseAdapter {
             holder.rowSubtitleIcon.setVisibility(View.VISIBLE);
             holder.rowSubtitle.setVisibility(View.VISIBLE);
             holder.rowSubtitle.setText(component.getFormat());
+            if (!TextUtils.isEmpty(component.getDueDate())) {
+                try {
+                    holder.rowSubtitleDueDate.setText(getFormattedDueDate(component.getDueDate()));
+                    holder.rowSubtitleDueDate.setVisibility(View.VISIBLE);
+                } catch (IllegalArgumentException e) {
+                    logger.error(e);
+                }
+            }
         }
 
         final int totalDownloadableVideos = component.getDownloadableVideosCount();
@@ -392,6 +409,20 @@ public class CourseOutlineAdapter extends BaseAdapter {
                             }
                         });
             }
+        }
+    }
+
+    private String getFormattedDueDate(String date) throws IllegalArgumentException {
+        final SimpleDateFormat dateFormat;
+        final Date dueDate = DateUtil.convertToDate(date);
+        if (android.text.format.DateUtils.isToday(dueDate.getTime())) {
+            dateFormat = new SimpleDateFormat("HH:mm z");
+            return ResourceUtil.getFormattedString(context.getResources(), R.string.due_date_today,
+                    "due_date", dateFormat.format(dueDate)).toString();
+        } else {
+            dateFormat = new SimpleDateFormat("MMMM dd, yyyy");
+            return ResourceUtil.getFormattedString(context.getResources(), R.string.due_date_past_future,
+                    "due_date", dateFormat.format(dueDate)).toString();
         }
     }
 
@@ -448,6 +479,8 @@ public class CourseOutlineAdapter extends BaseAdapter {
                 .findViewById(R.id.row_title);
         holder.rowSubtitle = (TextView) convertView
                 .findViewById(R.id.row_subtitle);
+        holder.rowSubtitleDueDate = (TextView) convertView
+                .findViewById(R.id.row_subtitle_due_date);
         holder.rowSubtitleIcon = (IconImageView) convertView
                 .findViewById(R.id.row_subtitle_icon);
         holder.rowSubtitleIcon.setIconColorResource(R.color.edx_brand_primary_base);
@@ -472,6 +505,7 @@ public class CourseOutlineAdapter extends BaseAdapter {
         IconImageView rowType;
         TextView rowTitle;
         TextView rowSubtitle;
+        TextView rowSubtitleDueDate;
         IconImageView rowSubtitleIcon;
         IconImageView bulkDownload;
         TextView noOfVideos;
